@@ -1,0 +1,2 @@
+web: yarn dev
+redis: redis start

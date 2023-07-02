@@ -1,2 +1,2 @@
-web: yarn dev
-redis: redis start
+web: cargo run --example echo
+ls -a

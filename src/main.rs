@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::{collections::HashMap, env, fs};
+use std::{collections::HashMap, env, fs, io, os};
 use tokio::{process, task::JoinSet};
 
 #[tokio::main]
@@ -12,9 +12,26 @@ async fn main() -> anyhow::Result<()> {
     let mut handles = JoinSet::new();
 
     for (_, cmd) in procfile.commands.iter() {
-        let cmd = cmd.clone();
+        let split_cmd = cmd.split_ascii_whitespace();
+        let mut cmd: String = String::new();
+        let mut args: Vec<String> = Vec::new();
+
+        for (i, str) in split_cmd.enumerate() {
+            if i == 0 {
+                cmd = str.into();
+            } else {
+                args.push(str.into());
+            }
+        }
+
+        if cmd.is_empty() {
+            continue;
+        }
+
         handles.spawn(async move {
             process::Command::new(cmd)
+                .current_dir(env::current_dir().unwrap())
+                .args(args)
                 .spawn()
                 .expect("err: ")
                 .wait()

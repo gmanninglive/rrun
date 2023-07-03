@@ -1,11 +1,10 @@
+mod log;
 use regex::Regex;
-use std::{collections::HashMap, env, fs, io, os};
+use std::{collections::HashMap, env, fs};
 use tokio::{process, task::JoinSet};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("Hello, world!");
-
     let mut procfile = Procfile::new(env::args().nth(1).expect("No procfile path specified"));
     procfile.parse()?;
 

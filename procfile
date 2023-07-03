@@ -1,2 +1,2 @@
 web: cargo run --example echo
-ls -a
+ls: 

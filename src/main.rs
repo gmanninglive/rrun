@@ -60,12 +60,16 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
-    // write pids to log file
-    fs::write("~/.rman.pids", format!("{:?}", pids.lock().await))?;
-
     loop {
         tokio::select! {
         _ = tokio::signal::ctrl_c() => {
+            let home = std::env::var("HOME").expect("$HOME env missing");
+            // write pids to log file
+            fs::write(
+                format!("{home}/.rman.pids"),
+                format!("{:?}\n", pids.lock().await),
+            )?;
+
             log::log!(Level::Info, "attempting graceful shutdown {} processes", handles.len());
             handles.shutdown().await;
             break;

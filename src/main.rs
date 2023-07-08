@@ -2,17 +2,14 @@ use anyhow::Ok;
 use regex::Regex;
 
 use log::{Level, LevelFilter};
-use std::{collections::HashMap, env, fs, process::Stdio};
-use tokio::{
-    io::{AsyncBufReadExt, BufReader},
-    process,
-    task::JoinSet,
-};
+use std::{collections::HashMap, env, fs, sync::Arc};
+use tokio::{process, sync::Mutex, task::JoinSet};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let pids: Arc<Mutex<Vec<u32>>> = Arc::new(Mutex::new(Vec::new()));
+
     env_logger::Builder::new()
-        .format_target(false)
         .filter(None, LevelFilter::Info)
         .init();
 
@@ -40,37 +37,31 @@ async fn main() -> anyhow::Result<()> {
 
         handles.spawn({
             let p_name = p_name.clone();
+            let pids = pids.clone();
 
             async move {
                 let mut child = process::Command::new(cmd)
                     .current_dir(env::current_dir().unwrap())
                     .args(args)
-                    .stdout(Stdio::piped())
                     .spawn()
                     .expect("err: ");
 
-                let stdout = child
-                    .stdout
-                    .take()
-                    .expect("child did not have a handle to stdout");
+                pids.lock().await.push(
+                    child
+                        .id()
+                        .expect(format!("error getting pid for {p_name}").as_str()),
+                );
 
-                // let pid = child.id().clone();
-
-                tokio::spawn(async move {
-                    let _ = child
-                        .wait()
-                        .await
-                        .expect("child process encountered an error");
-                });
-
-                let mut reader = BufReader::new(stdout).lines();
-
-                while let Result::Ok(Some(line)) = reader.next_line().await {
-                    log::info!("[{p_name}]: {}", line);
-                }
+                child
+                    .wait()
+                    .await
+                    .expect("child process encountered an error");
             }
         });
     }
+
+    // write pids to log file
+    fs::write("~/.rman.pids", format!("{:?}", pids.lock().await))?;
 
     loop {
         tokio::select! {

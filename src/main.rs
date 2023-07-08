@@ -1,21 +1,27 @@
-mod log;
 use anyhow::Ok;
-use log::Logger;
 use regex::Regex;
 
-use std::{collections::HashMap, env, fs};
-use tokio::{process, task::JoinSet};
+use log::{Level, LevelFilter};
+use std::{collections::HashMap, env, fs, process::Stdio};
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    process,
+    task::JoinSet,
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let l = Logger::new(None);
+    env_logger::Builder::new()
+        .format_target(false)
+        .filter(None, LevelFilter::Info)
+        .init();
 
     let mut procfile = Procfile::new(env::args().nth(1).expect("No procfile path specified"));
     procfile.parse()?;
 
     let mut handles = JoinSet::new();
 
-    for (_, cmd) in procfile.commands.iter() {
+    for (p_name, cmd) in procfile.commands.iter() {
         let split_cmd = cmd.split_ascii_whitespace();
         let mut cmd: String = String::new();
         let mut args: Vec<String> = Vec::new();
@@ -32,26 +38,44 @@ async fn main() -> anyhow::Result<()> {
             continue;
         }
 
-        handles.spawn(async move {
-            process::Command::new(cmd)
-                .current_dir(env::current_dir().unwrap())
-                .args(args)
-                .spawn()
-                .expect("err: ")
-                .wait()
-                .await
+        handles.spawn({
+            let p_name = p_name.clone();
+
+            async move {
+                let mut child = process::Command::new(cmd)
+                    .current_dir(env::current_dir().unwrap())
+                    .args(args)
+                    .stdout(Stdio::piped())
+                    .spawn()
+                    .expect("err: ");
+
+                let stdout = child
+                    .stdout
+                    .take()
+                    .expect("child did not have a handle to stdout");
+
+                // let pid = child.id().clone();
+
+                tokio::spawn(async move {
+                    let _ = child
+                        .wait()
+                        .await
+                        .expect("child process encountered an error");
+                });
+
+                let mut reader = BufReader::new(stdout).lines();
+
+                while let Result::Ok(Some(line)) = reader.next_line().await {
+                    log::info!("[{p_name}]: {}", line);
+                }
+            }
         });
     }
 
     loop {
         tokio::select! {
-        _ = handles.join_next() => {
-            handles.abort_all();
-            break;
-        },
         _ = tokio::signal::ctrl_c() => {
-            let p_len = handles.len();
-            l.log(log::Level::Info, format!("rrun attempting graceful shutdown {p_len} processes"));
+            log::log!(Level::Info, "attempting graceful shutdown {} processes", handles.len());
             handles.shutdown().await;
             break;
         }

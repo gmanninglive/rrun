@@ -1,10 +1,15 @@
 mod log;
+use anyhow::Ok;
+use log::Logger;
 use regex::Regex;
+
 use std::{collections::HashMap, env, fs};
 use tokio::{process, task::JoinSet};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let l = Logger::new(None);
+
     let mut procfile = Procfile::new(env::args().nth(1).expect("No procfile path specified"));
     procfile.parse()?;
 
@@ -41,6 +46,11 @@ async fn main() -> anyhow::Result<()> {
     loop {
         tokio::select! {
         _ = handles.join_next() => {
+            handles.abort_all();
+            break;
+        },
+        _ = tokio::signal::ctrl_c() => {
+            l.log(log::Level::Info, "rrun attempting graceful shutdown");
             handles.abort_all();
             break;
         }

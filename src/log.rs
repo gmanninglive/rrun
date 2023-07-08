@@ -1,7 +1,6 @@
 use std::{
     fmt::{self, Display},
     io::Write,
-    process::Stdio,
 };
 
 pub struct Logger {
@@ -53,7 +52,7 @@ impl Display for Level {
                 write!(f, "{}", s)
             }
             _ => {
-                write!(f, "{}", self.to_string())
+                write!(f, "{}", self)
             }
         }
     }

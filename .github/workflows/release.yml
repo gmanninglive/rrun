@@ -24,6 +24,8 @@ jobs:
         with:
           path: ./osxcross
           key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('scripts/osx_setup.sh') }}
+      - name: Add targets
+        run: rustup target add x86_64-apple-darwin
       - if: ${{ steps.cache-osxcross.outputs.cache-hit != 'true' }}
         name: Setup osx
         run: ./scripts/osx_setup.sh

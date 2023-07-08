@@ -1,0 +1,29 @@
+on:
+  push:
+    branches:
+      - main
+
+name: Release
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Setup osx
+        run: ./scripts/osx_setup.sh
+      - name: Release Build
+        run: ./scripts/build.sh
+      - name: "Upload Artifact"
+        uses: actions/upload-artifact@v3
+        with:
+          name: rrun
+          path: |
+            target/x86_64-apple-darwin
+            target/x86_64-unknown-linux-gnu

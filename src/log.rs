@@ -12,7 +12,7 @@ impl Logger {
         Self { level }
     }
 
-    pub fn log(self, level: Level, message: impl Into<String>) {
+    pub fn log(&self, level: Level, message: impl Into<String>) {
         println!("{}", Logger::fmt(level, message))
     }
 
@@ -37,7 +37,7 @@ impl Write for Logger {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Level {
     Info,
     Child(String),
@@ -51,8 +51,14 @@ impl Display for Level {
             Level::Child(s) => {
                 write!(f, "{}", s)
             }
-            _ => {
-                write!(f, "{}", self)
+            Level::Info => {
+                write!(f, "{}", "Info")
+            }
+            Level::Warn => {
+                write!(f, "{}", "Warn")
+            }
+            Level::Error => {
+                write!(f, "{}", "Error")
             }
         }
     }

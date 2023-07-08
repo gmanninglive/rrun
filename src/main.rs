@@ -50,8 +50,9 @@ async fn main() -> anyhow::Result<()> {
             break;
         },
         _ = tokio::signal::ctrl_c() => {
-            l.log(log::Level::Info, "rrun attempting graceful shutdown");
-            handles.abort_all();
+            let p_len = handles.len();
+            l.log(log::Level::Info, format!("rrun attempting graceful shutdown {p_len} processes"));
+            handles.shutdown().await;
             break;
         }
         }

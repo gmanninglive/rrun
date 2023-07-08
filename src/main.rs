@@ -1,8 +1,10 @@
+mod config;
+
 use anyhow::Ok;
-use regex::Regex;
+use config::Cmd;
 
 use log::{Level, LevelFilter};
-use std::{collections::HashMap, env, fs, sync::Arc};
+use std::{env, fs, process::Stdio, sync::Arc};
 use tokio::{process, sync::Mutex, task::JoinSet};
 
 #[tokio::main]
@@ -13,43 +15,44 @@ async fn main() -> anyhow::Result<()> {
         .filter(None, LevelFilter::Info)
         .init();
 
-    let mut procfile = Procfile::new(env::args().nth(1).expect("No procfile path specified"));
-    procfile.parse()?;
+    let mut procfile =
+        config::Procfile::new(env::args().nth(1).expect("No procfile path specified"));
+    let config = procfile.parse()?;
 
     let mut handles = JoinSet::new();
 
-    for (p_name, cmd) in procfile.commands.iter() {
-        let split_cmd = cmd.split_ascii_whitespace();
-        let mut cmd: String = String::new();
-        let mut args: Vec<String> = Vec::new();
-
-        for (i, str) in split_cmd.enumerate() {
-            if i == 0 {
-                cmd = str.into();
-            } else {
-                args.push(str.into());
-            }
-        }
-
-        if cmd.is_empty() {
-            continue;
-        }
-
+    for command in config.cmds.iter() {
         handles.spawn({
-            let p_name = p_name.clone();
+            let Cmd {
+                name,
+                cmd,
+                args,
+                stdin,
+                stdout,
+            } = command.clone();
             let pids = pids.clone();
 
             async move {
                 let mut child = process::Command::new(cmd)
                     .current_dir(env::current_dir().unwrap())
-                    .args(args)
+                    .args(args.to_owned())
+                    .stdin(match stdin {
+                        config::RmanStdio::Inherit => Stdio::inherit(),
+                        config::RmanStdio::Pipe => Stdio::piped(),
+                        config::RmanStdio::Null => Stdio::null(),
+                    })
+                    .stdout(match stdout {
+                        config::RmanStdio::Inherit => Stdio::inherit(),
+                        config::RmanStdio::Pipe => Stdio::piped(),
+                        config::RmanStdio::Null => Stdio::null(),
+                    })
                     .spawn()
                     .expect("err: ");
 
                 pids.lock().await.push(
                     child
                         .id()
-                        .expect(format!("error getting pid for {p_name}").as_str()),
+                        .expect(format!("error getting pid for {name}").as_str()),
                 );
 
                 child
@@ -78,36 +81,4 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-struct Procfile {
-    commands: HashMap<String, String>,
-    path: String,
-}
-
-impl Procfile {
-    fn new(path: String) -> Self {
-        Procfile {
-            commands: HashMap::new(),
-            path,
-        }
-    }
-
-    fn parse(&mut self) -> anyhow::Result<&Self> {
-        let reg = Regex::new(r"(?m)^(?P<key>[A-Za-z0-9_]+):\s*(?P<cmd>.+)$")
-            .expect("Failed building regex");
-
-        let file = fs::read_to_string(&self.path)?;
-
-        let matches = reg.captures_iter(file.as_str());
-
-        for cap in matches {
-            self.commands.insert(
-                cap.name("key").expect("error parsing key").as_str().into(),
-                cap.name("cmd").expect("error parsing cmd").as_str().into(),
-            );
-        }
-
-        Ok(self)
-    }
 }

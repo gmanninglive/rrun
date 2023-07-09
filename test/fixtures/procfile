@@ -1,0 +1,2 @@
+web_1: cargo run --example echo
+web_2: cargo run --example echo

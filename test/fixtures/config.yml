@@ -1,0 +1,14 @@
+- name: web_1
+  cmd: cargo
+  args:
+    - run
+    - --example
+    - echo
+  stdin: Inherit
+  stdout: Inherit
+- name: web_2
+  cmd: cargo
+  args:
+    - run
+    - --example
+    - echo

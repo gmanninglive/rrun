@@ -1,0 +1,6 @@
+- name: web_1
+  cmd: cargo run
+  args:
+    - --example
+    - echo
+  stdin: null

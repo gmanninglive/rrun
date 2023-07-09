@@ -1,7 +1,7 @@
 mod config;
 
 use anyhow::Ok;
-use config::Cmd;
+use config::{Cmd, Config};
 
 use log::{Level, LevelFilter};
 use std::{env, fs, process::Stdio, sync::Arc};
@@ -15,9 +15,8 @@ async fn main() -> anyhow::Result<()> {
         .filter(None, LevelFilter::Info)
         .init();
 
-    let mut procfile =
-        config::Procfile::new(env::args().nth(1).expect("No procfile path specified"));
-    let config = procfile.parse()?;
+    let mut config = Config::new(env::args().nth(1).expect("No config file path specified"));
+    config.parse()?;
 
     let mut handles = JoinSet::new();
 
@@ -37,14 +36,16 @@ async fn main() -> anyhow::Result<()> {
                     .current_dir(env::current_dir().unwrap())
                     .args(args.to_owned())
                     .stdin(match stdin {
-                        config::RmanStdio::Inherit => Stdio::inherit(),
-                        config::RmanStdio::Pipe => Stdio::piped(),
-                        config::RmanStdio::Null => Stdio::null(),
+                        Some(config::RmanStdio::Inherit) => Stdio::inherit(),
+                        Some(config::RmanStdio::Pipe) => Stdio::piped(),
+                        Some(config::RmanStdio::Null) => Stdio::null(),
+                        None => Stdio::inherit(),
                     })
                     .stdout(match stdout {
-                        config::RmanStdio::Inherit => Stdio::inherit(),
-                        config::RmanStdio::Pipe => Stdio::piped(),
-                        config::RmanStdio::Null => Stdio::null(),
+                        Some(config::RmanStdio::Inherit) => Stdio::inherit(),
+                        Some(config::RmanStdio::Pipe) => Stdio::piped(),
+                        Some(config::RmanStdio::Null) => Stdio::null(),
+                        None => Stdio::inherit(),
                     })
                     .spawn()
                     .expect("err: ");
@@ -73,7 +74,7 @@ async fn main() -> anyhow::Result<()> {
                 format!("{:?}\n", pids.lock().await),
             )?;
 
-            log::log!(Level::Info, "attempting graceful shutdown {} processes", handles.len());
+            log::log!(Level::Info, "attempting graceful shutdown of {} processes", handles.len());
             handles.shutdown().await;
             break;
         }

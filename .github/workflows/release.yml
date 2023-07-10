@@ -1,43 +1,25 @@
 on:
-  push:
-    branches:
-      - main
-
-name: Release
+  release:
+    types: [created]
 
 jobs:
   release:
-    name: Release
+    name: release ${{ matrix.target }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            archive: tar.gz tar.xz tar.zst
+          - target: x86_64-apple-darwin
+            archive: zip
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - name: Cache osx cross compilation deps
-        id: cache-osxcross
-        uses: actions/cache@v3
+      - uses: actions/checkout@master
+      - name: Compile and release
+        uses: rust-build/rust-build.action@v1.4.3
         env:
-          cache-name: cache-osxcross
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          path: ./osxcross
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('scripts/osx_setup.sh') }}
-      - name: Add targets
-        run: rustup target add x86_64-apple-darwin
-      - if: ${{ steps.cache-osxcross.outputs.cache-hit != 'true' }}
-        name: Setup osx
-        run: ./scripts/osx_setup.sh
-      - name: Release Build
-        run: ./scripts/build.sh
-      - name: Upload osx
-        uses: actions/upload-artifact@v3
-        with:
-          name: rman-x86_64-apple-darwin
-          path: target/x86_64-apple-darwin/release/rman
-      - name: Upload linux
-        uses: actions/upload-artifact@v3
-        with:
-          name: rman-x86_64-unknown-linux-gnu
-          path: target/x86_64-unknown-linux-gnu/release/rman
+          RUSTTARGET: ${{ matrix.target }}
+          ARCHIVE_TYPES: ${{ matrix.archive }}

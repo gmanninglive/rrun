@@ -56,7 +56,6 @@ async fn main() -> anyhow::Result<()> {
             // write pids after spawning last command
             if is_last {
                 let home = std::env::var("HOME").expect("$HOME env missing");
-                // write pids to log file
                 let _ = fs::write(
                     format!("{home}/.rman.pids"),
                     format!("{:?}\n", pids.lock().await),
@@ -91,9 +90,9 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod test {
-    use assert_cmd::prelude::*; // Add methods on commands
-    use predicates::prelude::*; // Used for writing assertions
-    use std::process::Command; // Run programs
+    use assert_cmd::prelude::*;
+    use predicates::prelude::*;
+    use std::process::Command;
 
     #[test]
     fn help() -> Result<(), Box<dyn std::error::Error>> {

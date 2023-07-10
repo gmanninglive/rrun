@@ -30,6 +30,7 @@ async fn main() -> anyhow::Result<()> {
         let pids = pids.clone();
 
         handles.spawn(async move {
+            log::info!("rman running [{name}]: {cmd} {}", args.join(" "));
             let mut child = process::Command::new(cmd)
                 .current_dir(env::current_dir().unwrap())
                 .args(args.to_owned())
@@ -71,6 +72,12 @@ async fn main() -> anyhow::Result<()> {
 
     loop {
         tokio::select! {
+        // exit if all commands complete
+        _ = handles.join_next() => {
+            if handles.is_empty() {
+                break;
+            }
+        }
         _ = tokio::signal::ctrl_c() => {
             log::log!(Level::Info, "attempting graceful shutdown of {} processes", handles.len());
             handles.shutdown().await;
@@ -80,4 +87,48 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use assert_cmd::prelude::*; // Add methods on commands
+    use predicates::prelude::*; // Used for writing assertions
+    use std::process::Command; // Run programs
+
+    #[test]
+    fn help() -> Result<(), Box<dyn std::error::Error>> {
+        let mut cmd = Command::cargo_bin("rman")?;
+
+        cmd.arg("--help");
+        cmd.assert()
+            .success()
+            .stdout(predicate::str::contains("Usage: rman"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn simple() -> Result<(), Box<dyn std::error::Error>> {
+        let mut cmd = Command::cargo_bin("rman")?;
+
+        cmd.arg("test/fixtures/ls_procfile");
+        cmd.assert()
+            .success()
+            .stderr(predicate::str::contains("ls -a"))
+            .stderr(predicate::str::contains("echo Hello World"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn file_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
+        let mut cmd = Command::cargo_bin("rman")?;
+
+        cmd.arg("test/file/doesnt/exist");
+        cmd.assert()
+            .failure()
+            .stderr(predicate::str::contains("No such file or directory"));
+
+        Ok(())
+    }
 }

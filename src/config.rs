@@ -120,6 +120,7 @@ pub fn parse_procfile(file: String) -> anyhow::Result<Vec<Cmd>> {
     Ok(cmds)
 }
 
+#[cfg(test)]
 pub mod test {
     #[allow(unused_imports)]
     use super::*;

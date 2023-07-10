@@ -121,6 +121,7 @@ pub fn parse_procfile(file: String) -> anyhow::Result<Vec<Cmd>> {
 }
 
 pub mod test {
+    #[allow(unused_imports)]
     use super::*;
 
     #[test]
@@ -236,7 +237,9 @@ pub mod test {
                         args: vec![
                             "run".to_string(),
                             "--example".to_string(),
-                            "echo".to_string()
+                            "echo".to_string(),
+                            "--".to_string(),
+                            "8080".to_string()
                         ],
                         stdin: Some(RmanStdio::Inherit),
                         stdout: Some(RmanStdio::Inherit)
@@ -247,7 +250,9 @@ pub mod test {
                         args: vec![
                             "run".to_string(),
                             "--example".to_string(),
-                            "echo".to_string()
+                            "echo".to_string(),
+                            "--".to_string(),
+                            "8081".to_string()
                         ],
                         stdin: Some(RmanStdio::Inherit),
                         stdout: Some(RmanStdio::Inherit)

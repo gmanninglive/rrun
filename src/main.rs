@@ -49,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
             pids.lock().await.push(
                 child
                     .id()
-                    .expect(format!("error getting pid for {name}").as_str()),
+                    .unwrap_or_else(|| panic!("error getting pid for {name}")),
             );
 
             // write pids after spawning last command

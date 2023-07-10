@@ -1,2 +1,2 @@
-web_1: cargo run --example echo
-web_2: cargo run --example echo
+web_1: cargo run --example echo -- 8080
+web_2: cargo run --example echo -- 8081

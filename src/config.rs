@@ -34,6 +34,30 @@ impl Config {
         }
     }
 
+    pub fn init() -> anyhow::Result<Self> {
+        let clap = clap::Command::new("rman")
+            .arg(
+                clap::Arg::new("config_path")
+                    .index(1)
+                    .help(
+                        r#"Path to config file, this can be json, yaml or a procfile. 
+Note using a procfile disables the ability to set stdio per command"#,
+                    )
+                    .action(clap::ArgAction::Set)
+                    .value_name("config_path"),
+            )
+            .get_matches();
+
+        let path = clap
+            .get_one::<String>("config_path")
+            .expect("No config file path specified");
+
+        let mut config = Config::new(path);
+        config.parse()?;
+
+        Ok(config)
+    }
+
     pub fn push_cmd(&mut self, cmd: Cmd) -> &mut Self {
         self.cmds.push(cmd);
         self

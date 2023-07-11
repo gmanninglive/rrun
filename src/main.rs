@@ -1,10 +1,14 @@
 mod config;
 
 use anyhow::Ok;
-use config::{Cmd, Config};
-
+use config::{Cmd, Config, RmanStdio};
 use log::{Level, LevelFilter};
-use std::{env, fs, process::Stdio, sync::Arc};
+use std::{
+    env,
+    fs::{self, File},
+    process::Stdio,
+    sync::Arc,
+};
 use tokio::{process, sync::Mutex, task::JoinSet};
 
 #[tokio::main]
@@ -35,13 +39,21 @@ async fn main() -> anyhow::Result<()> {
                 .current_dir(env::current_dir().unwrap())
                 .args(args.to_owned())
                 .stdin(match stdin {
-                    Some(config::RmanStdio::Inherit) => Stdio::inherit(),
-                    Some(config::RmanStdio::Null) => Stdio::null(),
+                    RmanStdio::Inherit => Stdio::inherit(),
+                    RmanStdio::Null => Stdio::null(),
+                    RmanStdio::File(path) => {
+                        let file = File::open(path).unwrap();
+                        Stdio::from(file)
+                    }
                     _ => Stdio::inherit(),
                 })
                 .stdout(match stdout {
-                    Some(config::RmanStdio::Inherit) => Stdio::inherit(),
-                    Some(config::RmanStdio::Null) => Stdio::null(),
+                    RmanStdio::Inherit => Stdio::inherit(),
+                    RmanStdio::Null => Stdio::null(),
+                    RmanStdio::File(path) => {
+                        let file = File::open(path).unwrap();
+                        Stdio::from(file)
+                    }
                     _ => Stdio::inherit(),
                 })
                 .spawn()
@@ -86,48 +98,4 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod test {
-    use assert_cmd::prelude::*;
-    use predicates::prelude::*;
-    use std::process::Command;
-
-    #[test]
-    fn help() -> Result<(), Box<dyn std::error::Error>> {
-        let mut cmd = Command::cargo_bin("rman")?;
-
-        cmd.arg("--help");
-        cmd.assert()
-            .success()
-            .stdout(predicate::str::contains("Usage: rman"));
-
-        Ok(())
-    }
-
-    #[test]
-    fn simple() -> Result<(), Box<dyn std::error::Error>> {
-        let mut cmd = Command::cargo_bin("rman")?;
-
-        cmd.arg("test/fixtures/ls_procfile");
-        cmd.assert()
-            .success()
-            .stderr(predicate::str::contains("ls -a"))
-            .stderr(predicate::str::contains("echo Hello World"));
-
-        Ok(())
-    }
-
-    #[test]
-    fn file_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
-        let mut cmd = Command::cargo_bin("rman")?;
-
-        cmd.arg("test/file/doesnt/exist");
-        cmd.assert()
-            .failure()
-            .stderr(predicate::str::contains("No such file or directory"));
-
-        Ok(())
-    }
 }

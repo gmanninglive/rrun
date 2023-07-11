@@ -1,4 +1,4 @@
-## rman
+## rman [![CI](https://github.com/gmanninglive/rman/actions/workflows/ci.yml/badge.svg)](https://github.com/gmanninglive/rman/actions/workflows/ci.yml)
 
 rman is a command line program inspired by foreman that allows you to configure standard input/output (stdio) for each command.
 
@@ -25,11 +25,22 @@ To use rman, follow the instructions below:
 1. Create a configuration file in either JSON, YAML, or Procfile format. This file will define the list of commands you want to run, along with their stdio configurations.
 2. Pass the path to the configuration file as an argument when running the `rman` command: `./rman config_file_path`
 
+### Options
+
+- `name`: The name of the command.
+- `stdin`: (Optional) The source of stdin. `null` | `inherit` | `file={path}`
+  Defaults to inherit.
+- `stdout`: (Optional) The source of stdout. `null` | `inherit` | `file={path}`
+  Defaults to inherit.
+- `cmd`: The command to be executed.
+- `args`: (Optional) An array of command arguments.
+
 #### Configuration File Format
 
 The configuration file should have the following format:
 
 - For JSON:
+  Note for stdio options `null` must be expressed as a string, to be deserialized correctly.
 
   ```json
   [
@@ -37,8 +48,8 @@ The configuration file should have the following format:
       "name": "string",
       "cmd": "string",
       "args": ["string"],
-      "stdin": "Inherit",
-      "stdout": "Inherit"
+      "stdin": "inherit",
+      "stdout": "null"
     }
   ]
   ```
@@ -50,25 +61,15 @@ The configuration file should have the following format:
     cmd: string
     args:
       - string
-    stdin: Inherit
-    stdout: Inherit
+    stdin: inherit
+    stdout: inherit
   ```
 
 - For Procfile (plain text):
 
   ```
-  name: cmd [args]
+  name: stdin>{stdin} stdout>{stdout} cmd [args]
   ```
-
-  - `name`: The name of the command.
-  - `cmd`: The command to be executed.
-  - `args`: (Optional) An array of command arguments.
-
-#### Limitations
-
-Currently only `null` and `inherit` are implemented for stdio. However I am planning to add support for `file` and `pipe` soon.
-
-Also procfile config file does not support stdio configuration just yet!
 
 #### Example Configuration File (JSON)
 
@@ -78,15 +79,15 @@ Also procfile config file does not support stdio configuration just yet!
     "name": "command1",
     "cmd": "echo",
     "args": ["Hello, World!"],
-    "stdin": "Inherit",
-    "stdout": "Inherit"
+    "stdin": "inherit",
+    "stdout": "inherit"
   },
   {
     "name": "command2",
     "cmd": "python",
     "args": ["script.py"],
-    "stdin": "Null",
-    "stdout": "Null"
+    "stdin": "null",
+    "stdout": "null"
   }
 ]
 ```
@@ -94,8 +95,8 @@ Also procfile config file does not support stdio configuration just yet!
 #### Example Configuration File (Procfile)
 
 ```
-command1: echo "Hello, World!"
-command2: python script.py
+command1: stdin>null stdout>file=log.txt echo "Hello, World!"
+command2: stdout>null python script.py
 ```
 
 ### License

@@ -195,13 +195,13 @@ pub mod test {
 
     #[test]
     fn test_deserialize_yaml() {
-        let mut config = Config::new("test/fixtures/config.yml");
+        let mut config = Config::new("tests/fixtures/config.yml");
         let _ = config.parse();
 
         assert_eq!(
             config,
             Config {
-                path: "test/fixtures/config.yml".to_string(),
+                path: "tests/fixtures/config.yml".to_string(),
                 cmds: vec![
                     Cmd {
                         name: "web_1".to_string(),
@@ -232,13 +232,13 @@ pub mod test {
 
     #[test]
     fn test_deserialize_json() {
-        let mut config = Config::new("test/fixtures/config.json");
+        let mut config = Config::new("tests/fixtures/config.json");
         let _ = config.parse();
 
         assert_eq!(
             config,
             Config {
-                path: "test/fixtures/config.json".to_string(),
+                path: "tests/fixtures/config.json".to_string(),
                 cmds: vec![
                     Cmd {
                         name: "web_1".to_string(),
@@ -269,13 +269,13 @@ pub mod test {
 
     #[test]
     fn test_deserialize_procfile() {
-        let mut config = Config::new("test/fixtures/procfile");
+        let mut config = Config::new("tests/fixtures/procfile");
         let _ = config.parse();
 
         assert_eq!(
             config,
             Config {
-                path: "test/fixtures/procfile".to_string(),
+                path: "tests/fixtures/procfile".to_string(),
                 cmds: vec![
                     Cmd {
                         name: "web_1".to_string(),

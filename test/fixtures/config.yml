@@ -10,5 +10,5 @@
     - run
     - --example
     - echo
-  stdin: Null
-  stdout: Null
+  stdin: null
+  stdout: null

@@ -1,10 +1,14 @@
 mod config;
 
 use anyhow::Ok;
-use config::{Cmd, Config};
-
+use config::{Cmd, Config, RmanStdio};
 use log::{Level, LevelFilter};
-use std::{env, fs, process::Stdio, sync::Arc};
+use std::{
+    env,
+    fs::{self, File},
+    process::Stdio,
+    sync::Arc,
+};
 use tokio::{process, sync::Mutex, task::JoinSet};
 
 #[tokio::main]
@@ -35,13 +39,21 @@ async fn main() -> anyhow::Result<()> {
                 .current_dir(env::current_dir().unwrap())
                 .args(args.to_owned())
                 .stdin(match stdin {
-                    config::RmanStdio::Inherit => Stdio::inherit(),
-                    config::RmanStdio::Null => Stdio::null(),
+                    RmanStdio::Inherit => Stdio::inherit(),
+                    RmanStdio::Null => Stdio::null(),
+                    RmanStdio::File(path) => {
+                        let file = File::open("foo.txt").unwrap();
+                        Stdio::from(file)
+                    }
                     _ => Stdio::inherit(),
                 })
                 .stdout(match stdout {
-                    config::RmanStdio::Inherit => Stdio::inherit(),
-                    config::RmanStdio::Null => Stdio::null(),
+                    RmanStdio::Inherit => Stdio::inherit(),
+                    RmanStdio::Null => Stdio::null(),
+                    RmanStdio::File(path) => {
+                        let file = File::open("foo.txt").unwrap();
+                        Stdio::from(file)
+                    }
                     _ => Stdio::inherit(),
                 })
                 .spawn()

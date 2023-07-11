@@ -28,6 +28,7 @@ pub enum RmanStdio {
     Inherit,
     Pipe,
     Null,
+    File(String),
 }
 
 impl Config {
@@ -89,7 +90,7 @@ pub fn parse_procfile(file: String) -> anyhow::Result<Vec<Cmd>> {
     let mut cmds: Vec<Cmd> = Vec::new();
 
     let reg = Regex::new(
-        r"(?m)^(?P<NAME>[A-Za-z0-9_]+):(?P<STDIN>\sstdin>(inherit|null))?(?P<STDOUT>\sstdout>(inherit|null))?\s*(?P<CMD>.+)$")
+        r"(?m)^(?P<NAME>[A-Za-z0-9_]+):(?P<STDIN>\sstdin>(inherit|null|file=\S+))?(?P<STDOUT>\sstdout>(inherit|null|file=\S+))?\s*(?P<CMD>.+)$")
     .expect("Failed building regex");
 
     let matches = reg.captures_iter(file.as_str());
@@ -99,10 +100,17 @@ pub fn parse_procfile(file: String) -> anyhow::Result<Vec<Cmd>> {
         let stdin = match cap.name("STDIN") {
             Some(s) => {
                 let s = s.as_str().replace("stdin>", "");
+                let s = s.trim();
 
-                match s.trim() {
+                match s {
                     "null" => RmanStdio::Null,
                     "inherit" => RmanStdio::Inherit,
+                    _ if s.starts_with("file=") => RmanStdio::File(
+                        s.split("file=")
+                            .last()
+                            .expect("no file path specified for stdin")
+                            .to_string(),
+                    ),
                     _ => RmanStdio::Inherit,
                 }
             }
@@ -111,9 +119,17 @@ pub fn parse_procfile(file: String) -> anyhow::Result<Vec<Cmd>> {
         let stdout = match cap.name("STDOUT") {
             Some(s) => {
                 let s = s.as_str().replace("stdout>", "");
-                match s.trim() {
+                let s = s.trim();
+
+                match s {
                     "null" => RmanStdio::Null,
                     "inherit" => RmanStdio::Inherit,
+                    _ if s.starts_with("file=") => RmanStdio::File(
+                        s.split("file=")
+                            .last()
+                            .expect("no file path specified for stdin")
+                            .to_string(),
+                    ),
                     _ => RmanStdio::Inherit,
                 }
             }
@@ -356,6 +372,29 @@ pub mod test {
                 args: vec!["-a".to_string()],
                 stdin: RmanStdio::Inherit,
                 stdout: RmanStdio::Null,
+            },
+        ];
+        assert_eq!(result, expected);
+
+        let procfile_stdio_file =
+            "cmd_1: stdin>file=test_in.txt stdout>file=test_out.txt ls -a\ncmd_2: ls -a"
+                .to_string();
+
+        let result = parse_procfile(procfile_stdio_file).unwrap();
+        let expected = vec![
+            Cmd {
+                name: "cmd_1".to_string(),
+                cmd: "ls".to_string(),
+                args: vec!["-a".to_string()],
+                stdin: RmanStdio::File("test_in.txt".to_string()),
+                stdout: RmanStdio::File("test_out.txt".to_string()),
+            },
+            Cmd {
+                name: "cmd_2".to_string(),
+                cmd: "ls".to_string(),
+                args: vec!["-a".to_string()],
+                stdin: RmanStdio::Inherit,
+                stdout: RmanStdio::Inherit,
             },
         ];
         assert_eq!(result, expected);

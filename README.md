@@ -1,4 +1,4 @@
-## rman
+## rman [![CI](https://github.com/gmanninglive/rman/actions/workflows/ci.yml/badge.svg)](https://github.com/gmanninglive/rman/actions/workflows/ci.yml)
 
 rman is a command line program inspired by foreman that allows you to configure standard input/output (stdio) for each command.
 

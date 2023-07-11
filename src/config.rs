@@ -23,6 +23,7 @@ pub struct Cmd {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Default)]
+#[serde(rename_all = "lowercase")]
 pub enum RmanStdio {
     #[default]
     Inherit,

@@ -8,7 +8,7 @@
     "name": "web_2",
     "cmd": "cargo",
     "args": ["run", "--example", "echo"],
-    "stdin": "Null",
-    "stdout": "Null"
+    "stdin": "null",
+    "stdout": "null"
   }
 ]

@@ -15,12 +15,16 @@ pub struct Cmd {
     pub name: String,
     pub cmd: String,
     pub args: Vec<String>,
-    pub stdin: Option<RmanStdio>,
-    pub stdout: Option<RmanStdio>,
+
+    #[serde(default)]
+    pub stdin: RmanStdio,
+    #[serde(default)]
+    pub stdout: RmanStdio,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Default)]
 pub enum RmanStdio {
+    #[default]
     Inherit,
     Pipe,
     Null,
@@ -84,13 +88,37 @@ Note using a procfile disables the ability to set stdio per command"#,
 pub fn parse_procfile(file: String) -> anyhow::Result<Vec<Cmd>> {
     let mut cmds: Vec<Cmd> = Vec::new();
 
-    let reg =
-        Regex::new(r"(?m)^(?P<key>[A-Za-z0-9_]+):\s*(?P<cmd>.+)$").expect("Failed building regex");
+    let reg = Regex::new(
+        r"(?m)^(?P<NAME>[A-Za-z0-9_]+):(?P<STDIN>\sstdin>(inherit|null))?(?P<STDOUT>\sstdout>(inherit|null))?\s*(?P<CMD>.+)$")
+    .expect("Failed building regex");
 
     let matches = reg.captures_iter(file.as_str());
 
     for cap in matches {
-        let cmd: String = cap.name("cmd").expect("error parsing cmd").as_str().into();
+        let cmd: String = cap.name("CMD").expect("error parsing cmd").as_str().into();
+        let stdin = match cap.name("STDIN") {
+            Some(s) => {
+                let s = s.as_str().replace("stdin>", "");
+
+                match s.trim() {
+                    "null" => RmanStdio::Null,
+                    "inherit" => RmanStdio::Inherit,
+                    _ => RmanStdio::Inherit,
+                }
+            }
+            None => RmanStdio::Inherit,
+        };
+        let stdout = match cap.name("STDOUT") {
+            Some(s) => {
+                let s = s.as_str().replace("stdout>", "");
+                match s.trim() {
+                    "null" => RmanStdio::Null,
+                    "inherit" => RmanStdio::Inherit,
+                    _ => RmanStdio::Inherit,
+                }
+            }
+            None => RmanStdio::Inherit,
+        };
 
         if cmd.is_empty() {
             continue;
@@ -109,11 +137,11 @@ pub fn parse_procfile(file: String) -> anyhow::Result<Vec<Cmd>> {
         }
 
         cmds.push(Cmd {
-            name: cap.name("key").expect("error parsing key").as_str().into(),
+            name: cap.name("NAME").expect("error parsing key").as_str().into(),
             cmd,
             args,
-            stdin: Some(RmanStdio::Inherit),
-            stdout: Some(RmanStdio::Inherit),
+            stdin,
+            stdout,
         });
     }
 
@@ -133,8 +161,8 @@ pub mod test {
             name: "test".to_string(),
             cmd: "ls".to_string(),
             args: Vec::new(),
-            stdin: Some(RmanStdio::Pipe),
-            stdout: Some(RmanStdio::Null),
+            stdin: RmanStdio::Pipe,
+            stdout: RmanStdio::Null,
         };
 
         config.push_cmd(cmd.clone());
@@ -166,8 +194,8 @@ pub mod test {
                             "--example".to_string(),
                             "echo".to_string()
                         ],
-                        stdin: Some(RmanStdio::Inherit),
-                        stdout: Some(RmanStdio::Inherit)
+                        stdin: RmanStdio::Inherit,
+                        stdout: RmanStdio::Inherit
                     },
                     Cmd {
                         name: "web_2".to_string(),
@@ -177,8 +205,8 @@ pub mod test {
                             "--example".to_string(),
                             "echo".to_string()
                         ],
-                        stdin: None,
-                        stdout: None
+                        stdin: RmanStdio::Null,
+                        stdout: RmanStdio::Null
                     }
                 ]
             }
@@ -203,8 +231,8 @@ pub mod test {
                             "--example".to_string(),
                             "echo".to_string()
                         ],
-                        stdin: Some(RmanStdio::Inherit),
-                        stdout: Some(RmanStdio::Inherit)
+                        stdin: RmanStdio::Inherit,
+                        stdout: RmanStdio::Inherit
                     },
                     Cmd {
                         name: "web_2".to_string(),
@@ -214,8 +242,8 @@ pub mod test {
                             "--example".to_string(),
                             "echo".to_string()
                         ],
-                        stdin: None,
-                        stdout: None
+                        stdin: RmanStdio::Null,
+                        stdout: RmanStdio::Null
                     }
                 ]
             }
@@ -242,8 +270,8 @@ pub mod test {
                             "--".to_string(),
                             "8080".to_string()
                         ],
-                        stdin: Some(RmanStdio::Inherit),
-                        stdout: Some(RmanStdio::Inherit)
+                        stdin: RmanStdio::Inherit,
+                        stdout: RmanStdio::Inherit
                     },
                     Cmd {
                         name: "web_2".to_string(),
@@ -255,11 +283,102 @@ pub mod test {
                             "--".to_string(),
                             "8081".to_string()
                         ],
-                        stdin: Some(RmanStdio::Inherit),
-                        stdout: Some(RmanStdio::Inherit)
+                        stdin: RmanStdio::Inherit,
+                        stdout: RmanStdio::Inherit
                     }
                 ]
             }
         )
+    }
+
+    #[test]
+    fn test_parse_procfile() {
+        let procfile_stdio_defined =
+            "cmd_1: stdin>null stdout>inherit ls -a\ncmd_2: stdin>inherit stdout>null ls -a"
+                .to_string();
+
+        let result = parse_procfile(procfile_stdio_defined).unwrap();
+        let expected = vec![
+            Cmd {
+                name: "cmd_1".to_string(),
+                cmd: "ls".to_string(),
+                args: vec!["-a".to_string()],
+                stdin: RmanStdio::Null,
+                stdout: RmanStdio::Inherit,
+            },
+            Cmd {
+                name: "cmd_2".to_string(),
+                cmd: "ls".to_string(),
+                args: vec!["-a".to_string()],
+                stdin: RmanStdio::Inherit,
+                stdout: RmanStdio::Null,
+            },
+        ];
+        assert_eq!(result, expected);
+
+        let procfile_stdin_defined =
+            "cmd_1: stdin>null ls -a\ncmd_2: stdin>inherit ls -a".to_string();
+
+        let result = parse_procfile(procfile_stdin_defined).unwrap();
+        let expected = vec![
+            Cmd {
+                name: "cmd_1".to_string(),
+                cmd: "ls".to_string(),
+                args: vec!["-a".to_string()],
+                stdin: RmanStdio::Null,
+                stdout: RmanStdio::Inherit,
+            },
+            Cmd {
+                name: "cmd_2".to_string(),
+                cmd: "ls".to_string(),
+                args: vec!["-a".to_string()],
+                stdin: RmanStdio::Inherit,
+                stdout: RmanStdio::Inherit,
+            },
+        ];
+        assert_eq!(result, expected);
+
+        let procfile_stdout_defined =
+            "cmd_1: stdout>null ls -a\ncmd_2: stdout>null ls -a".to_string();
+
+        let result = parse_procfile(procfile_stdout_defined).unwrap();
+        let expected = vec![
+            Cmd {
+                name: "cmd_1".to_string(),
+                cmd: "ls".to_string(),
+                args: vec!["-a".to_string()],
+                stdin: RmanStdio::Inherit,
+                stdout: RmanStdio::Null,
+            },
+            Cmd {
+                name: "cmd_2".to_string(),
+                cmd: "ls".to_string(),
+                args: vec!["-a".to_string()],
+                stdin: RmanStdio::Inherit,
+                stdout: RmanStdio::Null,
+            },
+        ];
+        assert_eq!(result, expected);
+
+        let procfile_stdio_not_defined = "cmd_1: ls -a\ncmd_2: ls -a".to_string();
+
+        let result = parse_procfile(procfile_stdio_not_defined).unwrap();
+        let expected = vec![
+            Cmd {
+                name: "cmd_1".to_string(),
+                cmd: "ls".to_string(),
+                args: vec!["-a".to_string()],
+                stdin: RmanStdio::Inherit,
+                stdout: RmanStdio::Inherit,
+            },
+            Cmd {
+                name: "cmd_2".to_string(),
+                cmd: "ls".to_string(),
+                args: vec!["-a".to_string()],
+                stdin: RmanStdio::Inherit,
+                stdout: RmanStdio::Inherit,
+            },
+        ];
+        assert_eq!(result, expected);
     }
 }

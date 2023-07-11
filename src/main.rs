@@ -35,13 +35,13 @@ async fn main() -> anyhow::Result<()> {
                 .current_dir(env::current_dir().unwrap())
                 .args(args.to_owned())
                 .stdin(match stdin {
-                    Some(config::RmanStdio::Inherit) => Stdio::inherit(),
-                    Some(config::RmanStdio::Null) => Stdio::null(),
+                    config::RmanStdio::Inherit => Stdio::inherit(),
+                    config::RmanStdio::Null => Stdio::null(),
                     _ => Stdio::inherit(),
                 })
                 .stdout(match stdout {
-                    Some(config::RmanStdio::Inherit) => Stdio::inherit(),
-                    Some(config::RmanStdio::Null) => Stdio::null(),
+                    config::RmanStdio::Inherit => Stdio::inherit(),
+                    config::RmanStdio::Null => Stdio::null(),
                     _ => Stdio::inherit(),
                 })
                 .spawn()

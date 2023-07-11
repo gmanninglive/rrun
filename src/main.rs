@@ -42,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
                     RmanStdio::Inherit => Stdio::inherit(),
                     RmanStdio::Null => Stdio::null(),
                     RmanStdio::File(path) => {
-                        let file = File::open("foo.txt").unwrap();
+                        let file = File::open(path).unwrap();
                         Stdio::from(file)
                     }
                     _ => Stdio::inherit(),
@@ -51,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
                     RmanStdio::Inherit => Stdio::inherit(),
                     RmanStdio::Null => Stdio::null(),
                     RmanStdio::File(path) => {
-                        let file = File::open("foo.txt").unwrap();
+                        let file = File::open(path).unwrap();
                         Stdio::from(file)
                     }
                     _ => Stdio::inherit(),

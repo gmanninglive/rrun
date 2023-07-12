@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{ffi::OsStr, fs, path::Path, process::exit};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -72,15 +72,22 @@ Note using a procfile disables the ability to set stdio per command"#,
     pub fn parse(&mut self) -> Result<&Self, anyhow::Error> {
         let file = fs::read_to_string(&self.path).expect("error reading config file");
 
-        if let Some(ext) = Path::new(&self.path).extension() {
-            if ext == "yml" || ext == "yaml" {
+        let ext = Path::new(&self.path).extension().and_then(OsStr::to_str);
+        match ext {
+            Some("yml") | Some("yaml") => {
                 self.cmds = serde_yaml::from_str::<Vec<Cmd>>(file.as_str())?;
-            };
-            if ext == "json" {
+            }
+            Some("json") => {
                 self.cmds = serde_json::from_str(file.as_str())?;
             }
-        } else {
-            self.cmds = parse_procfile(file)?;
+            _ => {
+                self.cmds = parse_procfile(file)?;
+            }
+        }
+
+        if self.cmds.is_empty() {
+            log::error!("error parsing config, no commands found!");
+            exit(1);
         }
 
         Ok(self)
@@ -306,6 +313,14 @@ pub mod test {
                 ]
             }
         )
+    }
+
+    #[test]
+    fn test_file_extension_catchall() {
+        let mut config = Config::new("tests/fixtures/catchall_extension.proc");
+        config.parse().unwrap();
+
+        assert_eq!(config.cmds.len(), 2)
     }
 
     #[test]
